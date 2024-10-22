@@ -1,0 +1,167 @@
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/cdf0bdef-f483-4d20-99f8-c88acc14a8ca/5173f2e2-4f7f-47ef-ba2d-2d7e370806cf/image.png)
+**Formål**: Opgaven handler om at hente produktdata fra Northwind OData-tjenesten ved hjælp af et integrationsflow i SAP Cloud Integration. Flowet skal oprette forbindelse til Northwind-tjenesten, udføre en `GET`-forespørgsel for at hente produkter og logge de modtagne data.
+
+### Trin-for-trin forklaring af opgaven:
+
+1. **Opsætning af OData-forbindelse**:
+    - En ny OData-forbindelse oprettes i SAP Cloud Integration.
+    - Northwind OData Service URL: `https://services.odata.org/V4/Northwind/Northwind.svc/Products` bruges til at hente produktdata.
+    - Adapteren er konfigureret til at sende en **GET-forespørgsel** til **Products**entiteten.
+2. **Oprettelse af integrationsflow**:
+    - Et nyt integrationsflow oprettes i SAP Cloud Integration.
+    - En **OData receiver adapter** tilføjes for at forbinde til Northwind-tjenesten og hente produktdata.
+    - Adapteren konfigureres til at hente specifikke felter fra produkterne, som f.eks. `ProductID`, `ProductName`, `CategoryID` og `UnitPrice`. Dette gøres ved hjælp af `$select`parameteren i forespørgslen.
+    - Der anvendes også en `$filter`parameter for kun at hente produkter med et bestemt `CategoryID` (f.eks. `CategoryID eq 1`).
+3. **Log Output**:
+    - Efter at produktdataene er hentet, tilføjes et **Log Message Step** for at logge resultaterne. Dette gør det muligt at se, hvilke data der blev modtaget fra Northwind-tjenesten.
+4. **Test af flowet**:
+    - Flowet implementeres og testes for at sikre, at det henter produktdataene korrekt.
+    - Der kan anvendes **Trace mode** i SAP Cloud Integration til at følge eksekveringen af flowet og fejlsøge eventuelle problemer.
+
+---
+
+### Forklaring af Løsningen:
+
+### Flowkomponenter:
+
+1. **Start Timer**:
+    - Flowet starter med en **Start Timer**, som automatisk aktiverer flowet baseret på en tidsplan eller med faste intervaller.
+2. **Product Request (OData GET)**:
+    - **OData Receiver Adapter** sender en `GET`forespørgsel til Northwind OData-tjenesten for at hente produktdata fra entiteten **Products**.
+    - Adapteren bruger `$select`parameteren til at begrænse forespørgslen til kun at hente bestemte felter, såsom `ProductID`, `ProductName`, `SupplierID`, `CategoryID`, og `UnitPrice`.
+    - `$filter` bruges til at indsnævre resultaterne ved kun at hente produkter fra en bestemt kategori, f.eks. `CategoryID eq 1`.
+3. **Product Logging**:
+    - Dataene, der modtages fra Northwind-tjenesten, logges ved hjælp af et **Log Message**trin.
+    - Logging-trinnet bruges til at vise de modtagne produktdata, så de kan spores og analyseres.
+4. **End**:
+    - Flowet afsluttes efter, at dataene er logget.
+
+### Løsningens Detaljer:
+
+- **OData Connection**:
+    - **Northwind OData URL** er konfigureret i **OData Receiver Adapteren**: `https://services.odata.org/V4/Northwind/Northwind.svc/Products`.
+    - Forespørgslen henter felter som `ProductID`, `ProductName`, `SupplierID`, `CategoryID`, `UnitPrice`, og `QuantityPerUnit` ved hjælp af `$select`.
+    - **Filtrering**: `$filter=CategoryID eq 1` anvendes for kun at hente produkter i kategori 1.
+- **Logging**:
+    - Dataene logges, så resultaterne af forespørgslen kan gennemgås. I denne opgave blev der anvendt et **Groovy script** til at formatere og logge de modtagne data på en organiseret måde.
+
+---
+
+### Forklaring af **Product Logging Scriptet**:
+
+Groovy-scriptet, der anvendes til logging, er designet til at håndtere payload-logning i SAP Cloud Integration. Her er en gennemgang af, hvordan det fungerer:
+
+### **Scriptets Formål**:
+
+- Scriptet bruges til at logge payloads på en systematisk måde i SAP Cloud Integration. Det kan fange både almindelige meddelelser (payloads), fejlmeddelelser, og andre logrelaterede data.
+- Det tilbyder fleksibilitet ved at logge data i forskellige formater (f.eks. XML eller tekst) og ved at tilføje kontekst som tidsstempler og unikke besked-ID'er til loggen.
+
+### **Funktioner i Scriptet**:
+
+1. **Indledende Konfigurationer**:
+    - Scriptet importerer nødvendige klasser fra **SAP Integration API** og Java-biblioteker, som bruges til at formatere og håndtere beskedlogning.
+    - Der er en række hjælpefunktioner (f.eks. `logIncoming()`, `LogOutgoing()`, `ErrorMessage()`), som alle kalder den centrale metode `processDataSpecific()` for at håndtere forskellige typer af logning.
+2. **Metoden `processDataSpecific()`**:
+    - Dette er den centrale metode, der tager to parametre:
+        - `logTitle`: En streng, der beskriver typen af log (f.eks. "Payload", "Error", "Response").
+        - `message`: Beskedobjektet, der indeholder payloaden samt beskedens metadata og egenskaber.
+    - Metoden henter beskedens egenskaber (f.eks. `messageID`, `messageRef`) og selve beskedkroppen (`body`) for at logge det nødvendige indhold.
+3. **Logning af Payload**:
+    - Hvis logning er aktiveret (baseret på `logTitle` eller en beskedegenskab som `writeLog`), vil beskedkroppen (`body`) blive logget.
+    - Payloadens format kontrolleres: Hvis det er XML (detekteret ved `body.indexOf("<")`), logges det som XML, ellers logges det som almindelig tekst.
+4. **Tidsstempling og formatering**:
+    - Scriptet tilføjer et tidsstempel (`timeStamp`) til loggen for at vise, hvornår logningen fandt sted. Dette gør det lettere at spore og analysere beskederne.
+    - Beskedens titel (`title`) kan også tilføje andre oplysninger som `messageID` eller `messageRef` for at sikre, at logningen er entydig og nem at forstå.
+5. **Fejlhåndtering**:
+    - Hvis der opstår fejl i løbet af logningen (f.eks. hvis `messageID` ikke findes), håndteres undtagelser med en simpel `try-catch`, der undgår at afbryde processen.
+6. **Return af Besked**:
+    - Til sidst returneres den oprindelige besked (`message`) fra scriptet, så integrationsflowet kan fortsætte med behandlingen.
+
+### Groovy-scriptet:
+
+```groovy
+
+/*
+    The integration developer needs to create the method processData
+    This method takes Message object of package com.sap.gateway.ip.core.customdev.util
+    which includes helper methods useful for the content developer:
+    The methods available are:
+    public java.lang.Object getBody()
+    public void setBody(java.lang.Object exchangeBody)
+    public java.util.Map<java.lang.String,java.lang.Object> getHeaders()
+    public void setHeaders(java.util.Map<java.lang.String,java.lang.Object> exchangeHeaders)
+    public void setHeader(java.lang.String name, java.lang.Object value)
+    public java.util.Map<java.lang.String,java.lang.Object> getProperties()
+    public void setProperties(java.util.Map<java.lang.String,java.lang.Object> exchangeProperties)
+    public void setProperty(java.lang.String name, java.lang.Object value)
+    public java.util.List<com.sap.gateway.ip.core.customdev.util.SoapHeader> getSoapHeaders()
+    public void setSoapHeaders(java.util.List<com.sap.gateway.ip.core.customdev.util.SoapHeader> soapHeaders)
+    public void clearSoapHeaders()
+ */
+
+//General Logging Routine by itelligence
+import com.sap.gateway.ip.core.customdev.util.Message;
+import java.util.HashMap;
+import com.sap.it.api.mapping.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Calendar;
+
+def Message processData(Message message)        { return processDataSpecific("Log", message); }
+def Message logIncoming(Message message)        { return processDataSpecific("Payload" ,message); }
+def Message LogOutgoing(Message message)        { return processDataSpecific("Outb ok", message); }
+def Message LogOutFault(Message message)        { return processDataSpecific("Outb fault", message); }
+def Message logAfterReqMap(Message message)     { return processDataSpecific("After ReqMap", message); }
+def Message LogLNResponse(Message message)      { return processDataSpecific("LNVertex Res", message); }
+def Message afterContentMod(Message message)    { return processDataSpecific("afterContentMod Res", message); }
+def Message convertedInput(Message message)     { return processDataSpecific("ConvertedInput", message); }
+def Message Response(Message message)           { return processDataSpecific("Response", message); }
+def Message ErrorMessage(Message message)       { return processDataSpecific("Error", message); }
+
+def Message processDataSpecific(String logTitle, Message message) {
+	map = message.getProperties();
+	def header = message.getHeaders();
+	def body = message.getBody(java.lang.String) as String;
+
+	def propertyMap = message.getProperties()
+    def title = logTitle
+
+	String logger = map.get("writeLog");
+    if(logger.equals("X") || logTitle.equals("Payload") || logTitle.equals("logError")){
+	    def messageRef =  propertyMap.get("messageRef");
+
+        try{
+            if (propertyMap.get("messageID") != null){
+                 title += ":"+propertyMap.get("messageID");
+            }
+        } catch (Exception e){
+            ;//ignored.
+        }
+
+        if (messageRef != null){
+            title += ": "+messageRef;
+        }
+
+    	String timeStamp = new SimpleDateFormat("HH:mm:ss.SSS").format(new Date());
+    	def messageLog = messageLogFactory.getMessageLog(message);
+
+    	if (messageLog != null) {
+    		 messageLog.setStringProperty("Logging#1", "Printing Payload As Attachment")
+            if (body.indexOf("<") == 0){
+                messageLog.addAttachmentAsString(title, body, "text/xml");
+            } else{
+                messageLog.addAttachmentAsString(title, body, "text/plain");
+            }
+    	}
+   }
+
+	return message;
+}
+
+```
+
+---
+
+### Konklusion:
+
+Dette flow viser, hvordan man kan oprette forbindelse til en ekstern OData-tjeneste som Northwind for at hente produktdata og derefter logge disse data effektivt i SAP Cloud Integration. **Groovy-scriptet** til logning giver fleksibilitet til at håndtere forskellige typer data og forbedrer fejlsøgning ved at tilføje tidsstempler og kontekst.
